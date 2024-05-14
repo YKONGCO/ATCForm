@@ -1,7 +1,8 @@
 ## ATCForm - Automatically fill in the collection form 自动化表单填写工具
 ATCForm is a tool that automatically fills in the collection form.
 supported: jin data ,tx data
-![](https://img.shields.io/github/release/YKONGCO0/ATCFrom)
+
+![](https://img.shields.io/github/release/YKONGCO/ATCForm)
 #### 1.data.txt 格式要求
 ```
 {
