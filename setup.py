@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ATCForm",
-    version="0.1.3",
+    version="0.1.6.1",
     description="ATCFrom - Automatically fill in the collection form 自动化表单填写工具",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -44,3 +44,20 @@ ATThreadPool : 线程池
 ```
 download_driver
 ```
+
+
+#### 3.输入模式与格式
+jsj
+```
+选项A #直接输选项名
+select_LIST=["选项A","选项B"]
+```
+
+tx
+```
+选项A 选项B #多选 请严格按照题目顺序填写
+选项C #单选
+select_LIST=[["选项A","选项B"],["选项C"]]
+```
+
+
