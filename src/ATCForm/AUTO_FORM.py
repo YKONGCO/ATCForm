@@ -1,13 +1,15 @@
 import time
+import os
+import re
+import shutil
+from ping3 import ping
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
-import os
-import re
-import time
-import os
-import shutil
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 def download_driver():
     folder_path = r'./'
@@ -17,6 +19,7 @@ def download_driver():
     download_driver_path = EdgeChromiumDriverManager().install()
     print(download_driver_path)
     shutil.move(download_driver_path, folder_path)
+    return folder_path
 
 
 
@@ -35,8 +38,8 @@ class AUTO_JSJ_FORM:
         try:
             self.driver=webdriver.Edge(options)
         except:
-            download_driver()
-            self.driver=webdriver.Edge(options) 
+            folder_path=download_driver()
+            self.driver=webdriver.Edge(options,executable_path=folder_path) 
         self.actions = ActionChains(self.driver)
         try:
             self.driver.get(url)
@@ -52,15 +55,15 @@ class AUTO_JSJ_FORM:
             self.info_data=eval(data)
             
     
-    def set_select_list(self):
+    def init_the_select_answer_list(self):
         while(1):
-            option=input("请输入你需要的勾选的选项(输入exit：退出)：")
+            option=input("请输入你需要的勾选的选项(每个选项以空格分隔开 输入exit：退出)：")
             if(option=="exit"):
                 return
             self.select_list.append(option)        
     
     
-    def display_all_qus(self):
+    def print_all_qus(self):
         print("----问题列表----")
         elements=self.driver.find_elements(By.CSS_SELECTOR, ".ant-col.field-container.field")
         for element in elements:
@@ -78,7 +81,7 @@ class AUTO_JSJ_FORM:
         except:
             return False
     
-    def is_shouji(self):
+    def is_collect(self):
         try:
             self.driver.find_element(By.XPATH, "//*[contains(text(), '已暂停收集')]")
             return False    
@@ -158,19 +161,23 @@ class AUTO_JSJ_FORM:
             start_timestamp  = time.mktime(time_tuple)
             if(start_timestamp<time.time()):
                 print("收集表已经开始")
-                return True
+                self.refreshdom()
+                return 
             
             cnt=0
             while(1):
-                cnt+=1
+          
                 current_timestamp = time.time()
-                current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_timestamp))
+                if(current_timestamp >= (start_timestamp-self.ping_time/1.2)):
+                    self.refreshdom()
+                    return
+                          
+                
                 if(cnt%200000==0):
+                    current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_timestamp))
                     print("正在等待当前时间为",current_time_str)
-            
-                if(current_timestamp >= start_timestamp+1):
-                    self.driver.refresh()
-                    return True
+                cnt+=1
+
         except ValueError:
             print("输入时间格式不正确，请输入正确的时间格式，例如：202405101328") 
         
@@ -228,12 +235,6 @@ class AUTO_JSJ_FORM:
                 # self.actions.click(button).perform()
                 button.click()
             # buttons.click()
-        
-                
-                
-
-
-
 
     def auto_submit(self):
         print("----自动提交-----")
@@ -255,6 +256,8 @@ class AUTO_JSJ_FORM:
     def __del__(self):
         self.driver.quit()
 
+
+
 class AUTO_TX_FORM:
     info_data={}
     select_list=[]
@@ -270,45 +273,21 @@ class AUTO_TX_FORM:
         try:
             self.driver=webdriver.Edge(options)
         except:
-            download_driver()
-            self.driver=webdriver.Edge(options)
+            folder_path=download_driver()
+            self.driver=webdriver.Edge(options,executable_path=folder_path) 
         self.actions = ActionChains(self.driver)
         try:
             self.driver.get(url)
         except:
             print("打开网页失败")
-    
-    
-    
-    def set_base_data(self,file_path :str):
-        with open(file_path,"r",encoding="utf-8") as f:
-            data=f.read()
-            data=data.replace("，",",").replace("：",":")
-            self.info_data=eval(data)
             
-    
-    def set_select_list(self):
-        elements=self.get_questions_select()
-        for element in elements:
-            value=element.text.replace("\n","").replace(" ","").replace("*","")
-            option = input(f"请输入问题 {value} 你需要的勾选的选项(输入exit：退出)：")
-            if option.lower() == "exit":
-                exit()
-            options_list = option.split()
-            self.select_list.append(options_list)
-            print("用户选择的选项列表：", options_list)        
-    
-    
-    def display_all_qus(self):
-        print("----问题列表----")
-        elements=self.driver.find_elements(By.CSS_SELECTOR, ".question")
-        for element in elements:
-            value=element.text.replace("\n","").replace(" ","").replace("*","")
-            print(value)
-        print("-----------------------------")
-        return elements
+        self.set_ping_time()
+
         
-    
+ 
+
+
+
     def is_login(self):
         """
         根据页面是否有"登录后才能填写"文本判断是否登录
@@ -320,75 +299,72 @@ class AUTO_TX_FORM:
         except:
             return True
     
-    
     def is_submit(self):
         """
         根据页面是否有"登录后才能填写"文本判断是否登录
         返回True或False
         """
         try:
-            self.driver.find_element(By.XPATH, "//*[contains(text(), '已提交')]")
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), '已提交')]")))
             return True    
         except:
             return False
-    
-    def is_shouji(self):
+
+    def is_collect(self):
         try:
             self.driver.find_element(By.XPATH, "//*[contains(text(), '已暂停收集')]")
             return False    
         except:
             return True
     
+    def is_start(self):
+        try:
+            self.driver.find_element(By.XPATH, "//*[contains(text(), '收集暂未开始')]")
+            return False    
+        except:
+            return  True
+
+    
+
+    def set_ping_time(self):
+        sum=0
+        for _ in range(1):
+            sum+=ping('docs.qq.com')
+        self.ping_time=sum
+
+    def set_elements(self):
+        self.input_elements=self.get_questions_input()
+        self.select_elements=self.get_questions_select()
+
+    def set_base_data(self,file_path :str):
+        with open(file_path,"r",encoding="utf-8") as f:
+            data=f.read()
+            data=data.replace("，",",").replace("：",":")
+            self.info_data=eval(data)
+            
+    
+
     
     
     
+    def print_all_qus(self):
+        print("------------------------------问题列表------------------------------")
+        elements=self.driver.find_elements(By.CSS_SELECTOR, ".question")
+        for element in elements:
+            value=element.text.replace("\n"," ").replace("*","")
+            print(value)
+        return elements
+        
     
+
     def wait_for_login(self):
         if(self.is_login==True):
             return
         else:
             os.system("cls")
-            input("请登录后按回车键继续")
-            self.driver.refresh()
+            input("请登录后按回车键继续...")
+            self.refreshdom()
             
-            
-           
-    
-    
-    
-    def get_questions_input(self):
-        """
-        Args:
-            driver (webdriver): selenium的webdriver
-        Returns:
-        elements
-        """
-        print("----输入列表----")
-        elements=self.driver.find_elements(By.CSS_SELECTOR, ".question[data-type='simple']")
-        for element in elements:
-            value=element.text.replace("\n","").replace(" ","").replace("*","")
-            print(value)       
-        return elements
-    
-    
-    
-    def get_questions_select(self):
-        """
-        Returns:
-        elements
-        """
-        print("----选择列表----")
-        first_elements=self.driver.find_elements(By.CSS_SELECTOR, ".question")
-        elements=[]
-        for element in first_elements:
-            if(element.get_attribute("data-type")=="radio" or element.get_attribute("data-type")=="checkbox"):
-                elements.append(element)
-        for element in elements:
-            value=element.text.replace("\n","").replace(" ","").replace("*","")
-            print(value)
-        return elements
-    
-    
     def set_wait_time(self,input_time : str |None=""):
         if(input_time==""):
             input_time=input("请输入等待时间：")
@@ -417,75 +393,119 @@ class AUTO_TX_FORM:
             start_timestamp  = time.mktime(time_tuple)
             if(start_timestamp<time.time()):
                 print("收集表已经开始")
-                return True
+                self.refreshdom()
+                return 
             
             cnt=0
             while(1):
+          
                 current_timestamp = time.time()
-                current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_timestamp))
+                if(current_timestamp >= (start_timestamp-self.ping_time/1.2)):
+                    self.refreshdom()
+                    return
+                          
+                
                 if(cnt%200000==0):
+                    current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_timestamp))
                     print("正在等待当前时间为",current_time_str)
-                if(current_timestamp >= start_timestamp-0.02):
-                    self.driver.refresh()
-                    return True
+                cnt+=1
+
         except ValueError:
             print("输入时间格式不正确，请输入正确的时间格式，例如：202405101328") 
         
-       
-            
-    def Initializes_the_answer_list(self):
-        print("----初始化答案列表----")
-        elements=self.get_questions_input()
+           
+    
+    
+    
+    def get_questions_input(self):
+        """
+        Args:
+            driver (webdriver): selenium的webdriver
+        Returns:
+        elements
+        """
+        # print("------------------------------输入列表------------------------------")
+        elements=self.driver.find_elements(By.XPATH, "//*[contains(@class, 'question') and  @data-type='simple']")  
+        return elements
+    
+    
+    
+    def get_questions_select(self):
+        """
+        Returns:
+        elements
+        """
+        elements = self.driver.find_elements(By.XPATH, "//*[contains(@class, 'question') and (contains(@data-type, 'radio') or contains(@data-type, 'checkbox'))]")
+        return elements
+    
+    
+    def init_the_select_answer_list(self):
+        elements=self.select_elements
+        for element in elements:
+            value=element.text.replace("\n"," ").replace("*","")
+            option = input(f"请输入问题 {value} 你需要的勾选的选项(每个选项以空格分隔开 输入exit：退出)：")
+            if option.lower() == "exit":
+                exit()
+            options_list = option.split()
+            self.select_list.append(options_list)
+            print("用户选择的选项列表：", options_list)        
+    
+        
+
+    def init_the_input_answer_list(self):
+        print("------------------------------初始化答案列表------------------------------")
+        elements=self.input_elements
         for element in elements:
             question=element.text.replace("\n","").replace(" ","")
             flag=0
-            
             for item_key in self.info_data:
                 if(re.search(item_key,question)):
                     self.answer_list.append(self.info_data[item_key])
-                    print("依据初始数据输入",question,"data：",self.info_data[item_key])
+                    print("**依据初始数据输入** ：",question,"data：",self.info_data[item_key])
                     flag=1
                     continue
             if(flag==1):
                 continue    
             value=input("请输入简答题 "+question+":")
             self.answer_list.append(value)    
-        print("-----------------------------")        
+         
     
     def auto_input(self):
         """
         自动输入值到具有指定名称的输入框中。
         """
         try: 
-            print("----自动输入----")
-            elements=self.get_questions_input()
-            index=0
-            for element in elements:
+            blank_area = self.driver.find_element(By.XPATH, "//div[contains(@class,'form-header-title-content')]")
+            # print("------------------------------自动输入------------------------------")
+            # index=0
+            elements=self.input_elements
+            for element,answer in zip(elements,self.answer_list):
                 data_qid=element.get_attribute("data-qid")
-                css_path=f'[data-qid="{data_qid}"]  textarea'
-                print(css_path)
-                textarea = self.driver.find_element(By.CSS_SELECTOR, css_path)
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", textarea)
-                textarea.send_keys(self.answer_list[index])
-                blank_area = self.driver.find_element(By.CLASS_NAME, "form-root")
+                textarea = self.driver.find_element(By.CSS_SELECTOR, f'[data-qid="{data_qid}"]  textarea')
+                # self.driver.execute_script("arguments[0].scrollIntoView(true);", textarea)
+                textarea.send_keys(answer)
                 self.actions.move_to_element(blank_area).click().perform()
-                
-                
-                index+=1
+                # index+=1
+            
+            
+            # print("输入成功",self.answer_list)
+            
         except Exception as e:
             print("填写失败",e)
     
 
     def auto_button(self):
         try: 
-            print("----自动点击----")
-            elements = self.get_questions_select()
+            # print("------------------------------自动点击------------------------------")
+            # elements = self.get_questions_select()
+            elements=self.select_elements
             index=0
             for element in elements:
                 for a in self.select_list[index]:
-                    button = element.find_element(By.XPATH, f".//span[text()='{a}']")  # 使用"."表示在当前元素下搜索
+                    button = element.find_element(By.XPATH, f"//span[contains(text(), '{a}')]")  # 使用"."表示在当前元素下搜索
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", button)
                     button.click()
+                    
                 index+=1
         except Exception as e:
             print("填写失败",e)
@@ -497,17 +517,30 @@ class AUTO_TX_FORM:
         blank_area = self.driver.find_element(By.CLASS_NAME, "form-header-title-content")
         self.actions.move_to_element(blank_area).click().perform()
         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")   
-        button=self.driver.find_element(By.XPATH,"//button[text()='提交']")
+        button=self.driver.find_element(By.XPATH,"//button[contains(text(), '提交')]")
         button.click()
+        
         try:
-            time.sleep(0.03)
-            button2 = self.driver.find_element(By.CSS_SELECTOR,"button.dui-button.dui-modal-footer-ok")
-            button2.click()
-            print("动作已经全部执行")
-            if(self.is_submit()):
-                print("成功抢到")
+            # 等待直到指定元素出现，最多等待10秒
+            submit_button = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH,"//button[contains(@class, 'dui-button dui-modal-footer-ok dui-button-type-primary dui-button-size-default')]"))
+            )
+            submit_button.click()
+            return
+            
         except Exception as e:
-            print(e)
+            print("提交失败",e)
+            return 
+            
+
+    
+    def refreshdom(self):
+        self.driver.refresh()
+        WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//button[contains(text(), '提交') or contains(text(), '收集暂未开始')]"))
+            )
+        
+                
             
     def __del__(self):
         self.driver.quit()
@@ -522,7 +555,7 @@ class AuTotask_TX:
             data_path (str): 数据地址
             start_time (str): 开始时间 格式为202405121200 年月日时分(注意补零).
             is_enable (bool, optional): 是否提前输入需要选择内容 Defaults to True.
-            SELECT_LIST (list, optional): 需要选择的内容. Defaults to [] 如["1","2"].
+            SELECT_LIST (list, optional): 需要选择的内容.格式为[["单选项A"],["单选项B"],["多选项A","多选项B"]] 请严格按照这个格式.
             
             
             1.data.txt 格式要求
@@ -542,42 +575,63 @@ class AuTotask_TX:
         self.is_enable=is_enable
         if(is_enable==False):
             self.SELECT_LIST=SELECT_LIST
+            
+        
 
     def run(self):
-        self.AT1.wait_for_time()
-        self.AT1.auto_input()
-        self.AT1.auto_button()
-        self.AT1.auto_submit()
-        
+        while(10):
+            try:
+                self.AT1.wait_for_time()
+                self.AT1.set_elements()
+                self.AT1.auto_input()
+                self.AT1.auto_button()
+                self.AT1.auto_submit()
+                time.sleep(self.AT1.ping_time)
+                if(self.AT1.is_submit()):
+                    print("成功抢到")
+                return 
+            except Exception as e:
+                print("任务失败",e)
+                continue
+            
+        print("任务失败")
     def init(self):
         self.AT1=AUTO_TX_FORM(self.url)
         self.AT1.set_wait_time(input_time=self.start_time)
+        if (self.AT1.is_collect==False):
+            print("已经暂停收集，任务失败")
+            return 
+            
+        
+        
         self.AT1.wait_for_login()
+        self.AT1.set_elements()
         self.AT1.set_base_data(self.data_path)
         if(self.is_enable==False):
-            self.AT1.select_list+=self.SELECT_LIST
-        self.AT1.display_all_qus()
-        self.AT1.Initializes_the_answer_list()
-        if(self.AT1.get_questions_select()!=[]):
-            self.AT1.set_select_list()
+            self.AT1.select_list=self.SELECT_LIST
+        self.AT1.print_all_qus()
+        self.AT1.init_the_input_answer_list()
+        
+        if(self.AT1.select_elements==[]):
+            self.AT1.init_the_select_answer_list()
+            
+                        
         current_timestamp = time.time()
         time_tuple = time.strptime(self.start_time, "%Y%m%d%H%M")
         start_timestamp  = time.mktime(time_tuple)
-        print("----任务初始化完成----")
+        print("------------------------------任务初始化完成------------------------------")
         if(current_timestamp < start_timestamp-8):
-            print("---------------------")
+            # print("---------------------")
             print("进入等待时间(5s)，请确认输入结果")
             print("input信息：",self.AT1.answer_list)
-            print("select信息：",self.AT1.select_list)
+            print("select信息：",self.AT1.select_list)            
+            print("输入ctrl+c可强制退出")
             time.sleep(5)
             
     def start(self):
         self.init()
         self.run()        
-    
-    
-    
-    
+
                
 class AuTotask_JSJ: 
     """
@@ -622,10 +676,10 @@ class AuTotask_JSJ:
         self.AJ1.set_base_data(self.data_path)
         if(self.is_enable==False):
             self.AJ1.select_list+=self.SELECT_LIST
-        self.AJ1.display_all_qus()
+        self.AJ1.print_all_qus()
         self.AJ1.Initializes_the_answer_list()
         if(self.AJ1.get_questions_select()!=[] and self.is_enable):
-            self.AJ1.set_select_list()
+            self.AJ1.init_the_select_answer_list()
         current_timestamp = time.time()
         time_tuple = time.strptime(self.start_time, "%Y%m%d%H%M")
         start_timestamp  = time.mktime(time_tuple)

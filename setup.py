@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ATCForm",
-    version="0.1.6.1",
+    version="0.1.7.2",
     description="ATCFrom - Automatically fill in the collection form 自动化表单填写工具",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -28,7 +28,8 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=[
         "webdriver_manager",
-        "selenium>=4.0"
+        "selenium>=4.0",
+        "ping3",
     ]
 )
 

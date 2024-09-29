@@ -28,7 +28,7 @@ task3 = AT.AuTotask_JSJ(url="https://....",
                             data_path="./data.txt",
                             start_time="202405141230",
                             is_enable=False,
-                            SELECT_LIST=["拍照摄影"]
+                            SELECT_LIST=[["11111111"],["1dsad"]]
                             )
 
 
@@ -37,24 +37,12 @@ task3=AT.AuTotask_TX(url="https://......",
                            data_path="./data.txt",
                             start_time="202405141230",
                             is_enable=False,
-                            SELECT_LIST=["拍照摄影"]
+                            SELECT_LIST=[["11111111"],["1dsad"]]
                            )
 
 
 #下载驱动
 AT.download_driver()
-
-
-
-
-# 单任务
-# 方式1
-task1.init() # 一定要先初始化
-task1.run() # 开始执行
-
-
-# 方式2
-task1.start() #傻瓜式
 
 
 #多线程
