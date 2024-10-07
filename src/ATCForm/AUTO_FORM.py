@@ -502,7 +502,7 @@ class AUTO_TX_FORM:
             index=0
             for element in elements:
                 for a in self.select_list[index]:
-                    button = element.find_element(By.XPATH, f"//span[contains(text(), '{a}')]")  # 使用"."表示在当前元素下搜索
+                    button = element.find_element(By.XPATH, f"//span[contains(text(), '{a}') and (contains(@class, 'form-choice-option-text-content form-choice-checkbox-option-text-content') or contains(@class, 'form-choice-option-text-content form-choice-radio-option-text-content') )]")  # 使用"."表示在当前元素下搜索
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", button)
                     button.click()
                     
@@ -609,10 +609,12 @@ class AuTotask_TX:
         self.AT1.set_base_data(self.data_path)
         if(self.is_enable==False):
             self.AT1.select_list=self.SELECT_LIST
+
+            
         self.AT1.print_all_qus()
         self.AT1.init_the_input_answer_list()
         
-        if(self.AT1.select_elements==[]):
+        if(self.is_enable):
             self.AT1.init_the_select_answer_list()
             
                         
